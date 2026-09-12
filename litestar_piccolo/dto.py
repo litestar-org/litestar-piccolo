@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from decimal import Decimal
-from typing import Any, Generator, Generic, List, Optional, TypeVar
+from typing import Any, Generator, Generic, List, Optional, TypeVar, Union
 
 from litestar.dto import AbstractDTO, DTOField, Mark
 from litestar.dto.data_structures import DTOFieldDefinition
@@ -37,8 +37,11 @@ class PiccoloDTO(AbstractDTO[T], Generic[T]):
 
 
 def _parse_piccolo_type(column: Column, extra: dict[str, Any]) -> FieldDefinition:
-    if isinstance(column, (column_types.Decimal, column_types.Numeric)):
-        column_type: Any = Decimal
+    if isinstance(column, column_types.ForeignKey):
+        column_type: Any = Union[column._foreign_key_meta.resolved_references, column.value_type]  # noqa: SLF001
+        meta = Meta(extra=extra)
+    elif isinstance(column, (column_types.Decimal, column_types.Numeric)):
+        column_type = Decimal
         meta = Meta(extra=extra)
     elif isinstance(column, (column_types.Email, column_types.Varchar)):
         column_type = str

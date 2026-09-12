@@ -14,7 +14,11 @@ from typing_extensions import get_args
 
 from litestar_piccolo import PiccoloDTO, PiccoloPlugin
 from tests.app.endpoints import (
+    band,
+    band_without_related_manager,
     create_concert,
+    retrieve_band,
+    retrieve_band_without_related_manager,
     retrieve_studio,
     retrieve_studio_plugin,
     retrieve_venues,
@@ -39,6 +43,20 @@ def test_dto_serializing_multiple_piccolo_tables(scaffold_piccolo: Callable) -> 
         response = client.get("/venues")
         assert response.status_code == HTTP_200_OK
         assert [str(Venue(**value).querystring) for value in response.json()] == [str(v.querystring) for v in venues]
+
+
+def test_dto_serializing_related_piccolo_table(scaffold_piccolo: Callable) -> None:
+    with create_test_client(route_handlers=[retrieve_band]) as client:
+        response = client.get("/band")
+        assert response.status_code == HTTP_200_OK
+        assert response.json()["manager"] == {"id": band.manager.id, "name": band.manager.name}
+
+
+def test_dto_serializing_unfetched_related_piccolo_table(scaffold_piccolo: Callable) -> None:
+    with create_test_client(route_handlers=[retrieve_band_without_related_manager]) as client:
+        response = client.get("/band-without-related-manager")
+        assert response.status_code == HTTP_200_OK
+        assert response.json()["manager"] == band_without_related_manager.manager
 
 
 def test_plugin_serializing_single_piccolo_table(scaffold_piccolo: Callable) -> None:
@@ -118,16 +136,18 @@ def test_piccolo_dto_openapi_spec_generation(scaffold_piccolo: Callable) -> None
 
     concert_schema = schema.components.schemas["CreateConcertConcertRequestBody"]
     assert concert_schema
-    assert concert_schema.to_schema() == {
-        "properties": {
-            "band_1": {"oneOf": [{"type": "null"}, {"type": "integer"}]},
-            "band_2": {"oneOf": [{"type": "null"}, {"type": "integer"}]},
-            "venue": {"oneOf": [{"type": "null"}, {"type": "integer"}]},
-        },
-        "required": [],
-        "title": "CreateConcertConcertRequestBody",
-        "type": "object",
-    }
+    concert_schema_dict = concert_schema.to_schema()
+    assert concert_schema_dict["type"] == "object"
+    assert concert_schema_dict["required"] == []
+    assert concert_schema_dict["title"] == "CreateConcertConcertRequestBody"
+    assert set(concert_schema_dict["properties"]) == {"band_1", "band_2", "venue"}
+    for name, related in (("band_1", "Band"), ("band_2", "Band"), ("venue", "Venue")):
+        options = concert_schema_dict["properties"][name]["oneOf"]
+        assert {"type": "integer"} in options
+        assert {"type": "null"} in options
+        refs = [option["$ref"] for option in options if "$ref" in option]
+        assert len(refs) == 1
+        assert refs[0].split("/")[-1].endswith(f"{related}RequestBody")
 
     record_studio_schema = schema.components.schemas.get(
         "RetrieveStudioRecordingStudioResponseBody",
