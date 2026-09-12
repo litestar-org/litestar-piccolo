@@ -141,10 +141,13 @@ def test_piccolo_dto_openapi_spec_generation(scaffold_piccolo: Callable) -> None
     assert concert_schema_dict["required"] == []
     assert concert_schema_dict["title"] == "CreateConcertConcertRequestBody"
     assert set(concert_schema_dict["properties"]) == {"band_1", "band_2", "venue"}
-    for concert_property in concert_schema_dict["properties"].values():
-        assert {"type": "integer"} in concert_property["oneOf"]
-        assert {"type": "null"} in concert_property["oneOf"]
-        assert any("$ref" in option for option in concert_property["oneOf"])
+    for name, related in (("band_1", "Band"), ("band_2", "Band"), ("venue", "Venue")):
+        options = concert_schema_dict["properties"][name]["oneOf"]
+        assert {"type": "integer"} in options
+        assert {"type": "null"} in options
+        refs = [option["$ref"] for option in options if "$ref" in option]
+        assert len(refs) == 1
+        assert refs[0].split("/")[-1].endswith(f"{related}RequestBody")
 
     record_studio_schema = schema.components.schemas.get(
         "RetrieveStudioRecordingStudioResponseBody",
