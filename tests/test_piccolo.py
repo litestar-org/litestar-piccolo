@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
 from decimal import Decimal
-from typing import Callable
+from typing import Any, get_args
 
 import pytest
 from litestar import Litestar
@@ -10,7 +12,6 @@ from litestar.testing import create_test_client
 from piccolo.columns import Column, column_types
 from piccolo.table import Table
 from polyfactory.utils.predicates import is_annotated
-from typing_extensions import get_args
 
 from litestar_piccolo import PiccoloDTO, PiccoloPlugin
 from tests.app.endpoints import (
@@ -25,6 +26,23 @@ from tests.app.endpoints import (
 from tests.app.tables import RecordingStudio, Venue
 
 pytestmark = pytest.mark.anyio
+
+
+def _null_first(schema: Any) -> Any:
+    """Order ``oneOf`` members with ``null`` first; their order differs between Litestar versions."""
+    if isinstance(schema, dict):
+        return {
+            key: sorted(
+                (_null_first(member) for member in value),
+                key=lambda member: (member != {"type": "null"}, json.dumps(member, sort_keys=True)),
+            )
+            if key == "oneOf"
+            else _null_first(value)
+            for key, value in schema.items()
+        }
+    if isinstance(schema, list):
+        return [_null_first(item) for item in schema]
+    return schema
 
 
 def test_dto_serializing_single_piccolo_table(scaffold_piccolo: Callable) -> None:
@@ -118,7 +136,7 @@ def test_piccolo_dto_openapi_spec_generation(scaffold_piccolo: Callable) -> None
 
     concert_schema = schema.components.schemas["CreateConcertConcertRequestBody"]
     assert concert_schema
-    assert concert_schema.to_schema() == {
+    assert _null_first(concert_schema.to_schema()) == {
         "properties": {
             "band_1": {"oneOf": [{"type": "null"}, {"type": "integer"}]},
             "band_2": {"oneOf": [{"type": "null"}, {"type": "integer"}]},
@@ -134,7 +152,7 @@ def test_piccolo_dto_openapi_spec_generation(scaffold_piccolo: Callable) -> None
         schema.components.schemas.get("tests.app.endpoints.retrieve_studioRecordingStudioResponseBody"),
     )
     assert record_studio_schema
-    assert record_studio_schema.to_schema() in (
+    assert _null_first(record_studio_schema.to_schema()) in (
         {
             "properties": {
                 "facilities": {"oneOf": [{"type": "null"}, {"type": "string"}]},
@@ -164,7 +182,7 @@ def test_piccolo_dto_openapi_spec_generation(scaffold_piccolo: Callable) -> None
         schema.components.schemas.get("tests.app.endpoints.retrieve_venuesVenueResponseBody"),
     )
     assert venue_schema
-    assert venue_schema.to_schema() in (
+    assert _null_first(venue_schema.to_schema()) in (
         {
             "properties": {
                 "capacity": {"oneOf": [{"type": "null"}, {"type": "integer"}]},

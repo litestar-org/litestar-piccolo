@@ -1,5 +1,3 @@
-from typing import List
-
 from litestar import MediaType, get, post
 from piccolo.testing import ModelBuilder
 
@@ -23,7 +21,7 @@ def retrieve_studio() -> RecordingStudio:
 
 
 @get("/venues", return_dto=PiccoloDTO[Venue], sync_to_thread=False)
-def retrieve_venues() -> List[Venue]:
+def retrieve_venues() -> list[Venue]:
     return venues
 
 
@@ -33,5 +31,5 @@ async def retrieve_studio_plugin() -> RecordingStudio:
 
 
 @get("/plugin/venues")
-async def retrieve_venues_plugin() -> List[Venue]:
+async def retrieve_venues_plugin() -> list[Venue]:
     return venues

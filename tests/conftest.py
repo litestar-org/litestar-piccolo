@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from collections import abc
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import pytest
 from piccolo.conf.apps import Finder

@@ -21,7 +21,7 @@ jobs:
 
       - name: Load cached Pre-Commit Dependencies
         id: cached-pre-commit-dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit/
           key: pre-commit|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     timeout-minutes: 30
     defaults:
       run:
@@ -85,9 +85,10 @@ jobs:
         run: echo $PR_NUMBER > .pr_number
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: docs-preview
+          include-hidden-files: true
           path: |
             docs/_build/html
             .pr_number
